@@ -12,8 +12,8 @@ class Generator {
 			arcDelta: 30,
 			maxShapes: 3,
 			minShapes: 1,
-			maxStrokeWidth: 30,
-			minStrokeWidth: 10
+			maxStrokeWidth: 10,
+			minStrokeWidth: 1
 		});
 	}
 
@@ -82,7 +82,9 @@ class Generator {
 `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.options.width} ${this.options.height}"
 	width="${this.options.width}" height="${this.options.height}">
 
-	<path fill="none" stroke="#000" d="${methods.join(' ')}"/>
+	<path fill="none" stroke="#000" stroke-width="${this.randomize(
+		this.options.minStrokeWidth, this.options.maxStrokeWidth
+	)}" d="${methods.join(' ')}"/>
 </svg>`;
 
 	}
