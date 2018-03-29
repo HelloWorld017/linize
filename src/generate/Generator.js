@@ -33,8 +33,19 @@ class Generator {
 		return Math.random() < prob;
 	}
 
+	clamp(point) {
+		point[0] = Math.min(this.options.width, Math.max(0, point[0]));
+		point[1] = Math.min(this.options.width, Math.max(0, point[1]));
+
+		return point;
+	}
+
 	toNotation(point) {
 		return point.join(' ');
+	}
+
+	toAbsolute(point, position) {
+		return [point[0] + position[0], point[1] + position[1]];
 	}
 
 	getNewPoint(prev) {
@@ -60,29 +71,33 @@ class Generator {
 		const shapes = this.randomize(this.options.minShapes, this.options.maxShapes);
 		for(let i = 0; i < shapes; i++) {
 			lastPoint = this.getNewPoint(lastPoint);
-			methods.push(`M ${this.toNotation(lastPoint)}`);
+			methods.push(['M', lastPoint]);
 
 			const points = this.randomize(this.options.minPoints, this.options.maxPoints);
 			if(points > maxPoints) maxPoints = points;
 
 			for(let p = 0; p < points; p++) {
-				const newPoint = this.getNewPoint(lastPoint);
-				const delta = [newPoint[0] - lastPoint[0], newPoint[1] - lastPoint[1]];
+				const newPoint = this.clamp(this.getNewPoint(lastPoint));
 
 				if(this.fulfill(this.options.arcProb)) {
-					const p1 = this.getNewDelta(this.options.arcDelta, this.options.arcDelta);
-					const p2 = this.getNewDelta(this.options.arcDelta, this.options.arcDelta);
+					const p1 = this.clamp(this.toAbsolute(
+						this.getNewDelta(this.options.arcDelta, this.options.arcDelta), lastPoint
+					));
 
-					methods.push(`c ${this.toNotation(p1)}, ${this.toNotation(p2)}, ${this.toNotation(delta)}`);
+					const p2 = this.clamp(this.toAbsolute(
+						this.getNewDelta(this.options.arcDelta, this.options.arcDelta), lastPoint
+					));
+
+					methods.push(['C', p1, p2, newPoint]);
 				} else {
-					methods.push(`l ${this.toNotation(delta)}`);
+					methods.push(['L', newPoint]);
 				}
 
 				lastPoint = newPoint;
 			}
 
 			if(this.fulfill(this.closeProb)) {
-				methods.push('Z');
+				methods.push(['Z']);
 			}
 		}
 
@@ -105,24 +120,66 @@ class Generator {
 		};
 	}
 
+	composeMethod(method) {
+		return `${method[0]} ${method.slice(1).map(v => this.toNotation(v)).join(' ')}`;
+	}
+
 	composeSVG({methods, strokeWidth}) {
+		const composedMethod = methods.map(v => this.composeMethod(v)).join(' ');
+
 		return '' +
 `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.options.width} ${this.options.height}"
 	width="${this.options.width}" height="${this.options.height}">
 
-	<path fill="none" stroke="#000" stroke-width="${strokeWidth}" d="${methods.join(' ')}"/>
+	<path fill="none" stroke="#000" stroke-width="${strokeWidth}" d="${composedMethod}"/>
 </svg>`;
 
 	}
 
+	composeMatrix({methods}) {
+		const methodName = {
+			'M': [1., 0., 0., 0.],
+			'L': [0., 1., 0., 0.],
+			'C': [0., 0., 1., 0.],
+			'Z': [0., 0., 0., 1.]
+		};
+
+		return methods.map(method => {
+			const matrix = [
+				methodName[method[0]]
+			];
+
+			for(let i = 1; i < 4; i++) {
+				if(method[i]) {
+					matrix.push([
+						method[i][0] / this.options.width,
+						method[i][1] / this.options.width,
+						.0,
+						.0
+					]);
+					continue;
+				}
+
+				matrix.push([.0, .0, .0, .0]);
+			}
+
+			return matrix;
+		});
+	}
+
 	generate(counts) {
-		const svgList = [];
+		const list = [];
 
 		for(let i = 0; i < counts; i++) {
-			svgList.push(this.composeSVG(this.generatePath()));
+			const path = this.generatePath();
+
+			list.push({
+				svg: this.composeSVG(path),
+				matrix: this.composeMatrix(path)
+			});
 		}
 
-		return svgList;
+		return list;
 	}
 }
 

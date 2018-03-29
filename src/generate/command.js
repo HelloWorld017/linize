@@ -11,7 +11,7 @@ const basePath = path.resolve('./results', 'dataset');
 
 const generate = async (setName, config) => {
 	const svgGenerator = new Generator;
-	const svgList = svgGenerator.generate(config.generate[setName]);
+	const generated = svgGenerator.generate(config.generate[setName]);
 
 	console.log(chalk.cyan(`Generating ${setName} datasets...`));
 
@@ -24,8 +24,9 @@ const generate = async (setName, config) => {
 	await FileSystem.mkdirs(targetDirX);
 	await FileSystem.mkdirs(targetDirY);
 
-	for(let i in svgList) {
-		await FileSystem.write(path.join(targetDirY, `${i}.svg`), svgList[i]);
+	for(let i in generated) {
+		await FileSystem.write(path.join(targetDirY, `${i}.svg`), generated[i].svg);
+		await FileSystem.write(path.join(targetDirY, `${i}.json`), JSON.stringify(generated[i].matrix));
 
 		bar.update(i);
 	}
