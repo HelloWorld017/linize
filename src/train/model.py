@@ -1,9 +1,6 @@
-from torch import cat
+from torch import cat, Tensor
 from torch.nn import Conv2d, Linear, LSTM, Module
 from torch.nn.functional import relu, softmax, tanh
-
-import torch.autograd as autograd
-import torch.optim as optim
 
 
 class LinizeModel(Module):
@@ -28,6 +25,10 @@ class LinizeModel(Module):
         self.linear_l10_3 = Linear(32, 2)
         self.linear_l10_4 = Linear(32, 2)
 
+        self.zero_pad = Tensor([0, 0])
+
+        self.args = args
+
     def forward(self, x):
         conv_output1 = relu(self.conv_l4_1(x))
 
@@ -40,6 +41,10 @@ class LinizeModel(Module):
         conv_output3 = relu(self.conv_l4_3(conv_output3))
 
         x = cat((conv_output1, conv_output2, conv_output3), 2)
+        x = relu(self.conv_l5(x))
+        x = relu(self.conv_l6(x))
+        x = x.view(4096, -1)
+        x = x.repeat(0, self.args.seq_size)
         x = relu(self.lstm_l7(x))
         x = relu(self.linear_l8(x))
 
@@ -47,8 +52,10 @@ class LinizeModel(Module):
         y1 = softmax(self.linear_l10_1(y1))
 
         y2 = relu(self.linear_l9_2(x))
-        y2_1 = tanh(self.linear_l10_2(y2))
-        y2_2 = tanh(self.linear_l10_3(y2))
-        y2_3 = tanh(self.linear_l10_4(y2))
+        y2_1 = cat((tanh(self.linear_l10_2(y2)), self.zero_pad), 0)
+        y2_2 = cat((tanh(self.linear_l10_3(y2)), self.zero_pad), 0)
+        y2_3 = cat((tanh(self.linear_l10_4(y2)), self.zero_pad), 0)
 
-        return y1, y2_1, y2_2, y2_3
+        y = cat((y1, y2_1, y2_2, y2_3), 1)
+
+        return y

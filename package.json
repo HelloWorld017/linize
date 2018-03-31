@@ -5,7 +5,9 @@
   "main": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node src/"
+    "generate": "node src/generate/command",
+    "config": "node src/config/command",
+    "train": "python src/train/index.py"
   },
   "repository": {
     "type": "git",
